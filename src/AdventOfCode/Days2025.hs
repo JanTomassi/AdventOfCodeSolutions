@@ -1,4 +1,4 @@
-module AdventOfCode.Days
+module AdventOfCode.Days2025
        ( run01
        , run02
        , run03
