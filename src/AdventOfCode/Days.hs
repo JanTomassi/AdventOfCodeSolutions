@@ -368,15 +368,20 @@ run05 args = do
 part05_1 :: String -> Int
 part05_1 strs = let
   lns = lines strs
-  (ranges', ids') = splitOn (== "") lns
-  ranges = map ((\(f,s) -> (read f, read s)) . (splitOn (=='-'))) ranges'
-  ids :: [Int] = [read v | v <- ids']
-  in foldl (\acc i -> if (any ((flip inRange) i) ranges) then acc+1 else acc) 0 ids
-
+  (ranges, ids) = splitOn (== "") lns
+  ranges' = map ((\(f,s) -> (read f, read s)) . (splitOn (=='-'))) ranges
+  ids' = [read v | v <- ids]
+  in foldl (countWhenInRange ranges') 0 ids'
   where
     splitOn p xs = let
       (chunk, rest) = break p xs
       in (chunk, drop 1 rest)
+
+    countWhenInRange :: [(Int, Int)] -> Int -> Int -> Int
+    countWhenInRange ranges acc i =
+      if (any ((flip inRange) i) ranges)
+      then acc+1
+      else acc
 
 type Range a = (a, a)
 
@@ -384,7 +389,7 @@ part05_2 :: String -> Int
 part05_2 strs = let
   lns = lines strs
   (ranges', _) = splitOn (== "") lns
-  ranges :: [Range Int] = map ((\(f,s) -> (read f, read s)) . (splitOn (=='-'))) ranges'
+  ranges = map ((\(f,s) -> (read f, read s)) . (splitOn (=='-'))) ranges'
   in foldl (\acc (l,h) -> (h-l+1)+acc) 0 (mergeRanges (mergeRanges ranges))
 
   where
@@ -481,11 +486,13 @@ part06_2 str =
     isWhiteSpace = (==' ')
 
 
-data Elm07 = Null | Split | Beam | Source
-     deriving (Read, Show, Enum, Eq, Ord)
 -----------------
 -- Seventh Day --
 -----------------
+
+data Elm07 = Null | Split | Beam | Source
+     deriving (Read, Show, Enum, Eq, Ord)
+
 run07 :: [String] -> IO ()
 run07 args = do
   input0 <- readFile "inputs/day07.txt"
