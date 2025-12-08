@@ -6,18 +6,17 @@ module AdventOfCode.Days2025
        , run05
        , run06
        , run07
+       , run08
        ) where
 
-import Debug.Trace (trace, -- traceId,
-                    traceShow, -- traceShowId
-                   )
+import Debug.Trace (trace, traceId, traceShow, traceShowId)
 import Data.Char   (digitToInt)
 import Data.Array
-import Data.List   (sortOn)
-import Data.List   (transpose, foldl', foldl1')
-import Data.List   (elemIndex)
+import Data.List   (sortOn, transpose, foldl', foldl1', sortBy, tails, elemIndex, find)
+import Data.Ord    (comparing)
+import Data.Maybe  (fromMaybe)
 
--- import qualified Data.Set        as Set
+import qualified Data.Set        as S
 import qualified Data.Map.Strict as M
 
 
@@ -609,3 +608,144 @@ part07_2 str =
           in goCols s3 acc' (col + 1) cs
       | otherwise =
           goCols s acc (col + 1) cs
+
+
+
+type JunctionBox08 = (Int,Int,Int)
+run08 :: [String] -> IO ()
+run08 args = do
+  input0 <- readFile "inputs/day08_t.txt"
+  input1 <- readFile "inputs/day08_1.txt"
+  case (args) of
+    [] -> do
+      putStrLn $ "test: Day 08, part 1: " ++ (show $ part08_1 input0)
+      putStrLn $ "test: Day 08, part 2: " ++ (show $ part08_2 input0)
+      putStrLn $ "Day 08, part 1: " ++ (show $ part08_1 input1)
+      putStrLn $ "Day 08, part 2: " ++ (show $ part08_2 input1)
+    ["t"] -> do
+      putStrLn $ "test: Day 08, part 1: " ++ (show $ part08_1 input0)
+      putStrLn $ "test: Day 08, part 2: " ++ (show $ part08_2 input0)
+    ["1"] -> do
+      putStrLn $ "Day 08, part 1: " ++ (show $ part08_1 input1)
+    ["2"] -> do
+      putStrLn $ "Day 08, part 2: " ++ (show $ part08_2 input1)
+    _ ->
+      putStrLn "Usage: aoc2025 1 [t|1|2]"
+
+
+part08_1 :: String -> Int
+part08_1 strs = let
+  ls  = lines strs
+  psd = pairsByDistance $ map (createJunctionBox . splitOnChar ',') $ ls
+  ssj = createSet $ ls
+  in foldl' (\acc (s,_) -> s*acc) 1
+     $ take 3
+     $ sortBy (flip $ comparing fst)
+     $ S.toList
+     $ S.map (\it -> (S.size it, it))
+     $ doNShortConnection (take 1000 psd) ssj
+  where
+    pairsByDistance :: [JunctionBox08] -> [((JunctionBox08, JunctionBox08), Double)]
+    pairsByDistance pts =
+      sortBy (comparing snd) (allPairs pts)
+
+    allPairs pts =
+      [ ((p, q), dist p q)
+      | (p:rest) <- tails pts
+      , q        <- rest
+      ]
+
+    -- Euclidean distance between two 3D points
+    dist :: JunctionBox08 -> JunctionBox08 -> Double
+    dist (x1, y1, z1) (x2, y2, z2) =
+      sqrt $ (fromIntegral(x1-x2))**2 + (fromIntegral(y1 - y2))**2 + (fromIntegral(z1 - z2))**2
+
+    createSet :: [String] -> S.Set (S.Set JunctionBox08)
+    createSet [] = S.empty
+    createSet (s:ss) = S.insert (S.singleton $ createJunctionBox $ splitOnChar ',' s) $ createSet ss
+
+    splitOnChar :: Char -> String -> [String]
+    splitOnChar c s =
+      case break (== c) s of
+        (chunk, [])     -> [chunk]
+        (chunk, _:rest) -> chunk : splitOnChar c rest
+
+    createJunctionBox :: [String] -> JunctionBox08
+    createJunctionBox (x:y:z:[]) = ((read x), (read y), (read z))
+    createJunctionBox _ = error "Not possible to create JunctionBox"
+
+    doNShortConnection
+      :: [((JunctionBox08, JunctionBox08), Double)]
+      -> S.Set (S.Set JunctionBox08)
+      -> S.Set (S.Set JunctionBox08)
+    doNShortConnection [] ssj  = ssj
+    doNShortConnection (psd:psds) ssj = doNShortConnection psds $ doShortConnection psd ssj
+
+    doShortConnection
+      :: ((JunctionBox08, JunctionBox08), Double)
+      -> S.Set (S.Set JunctionBox08)
+      -> S.Set (S.Set JunctionBox08)
+    doShortConnection ((p1,p2),_) s = fromMaybe s $ do
+      s1 <- find (S.member p1) s
+      s2 <- find (S.member p2) s
+      pure $ S.insert (S.union s1 s2) $ S.delete s1 $ S.delete s2 s
+
+
+part08_2 :: String -> Int
+part08_2 strs = let
+  ls  = lines strs
+  psd = pairsByDistance $ map (createJunctionBox . splitOnChar ',') $ ls
+  ssj = createSet $ ls
+  in case doNShortConnection psd ssj of
+       Just (((x1,_,_),(x2,_,_)),_) -> x1 * x2
+       Nothing -> error "Impossible to solve"
+  where
+    pairsByDistance :: [JunctionBox08] -> [((JunctionBox08, JunctionBox08), Double)]
+    pairsByDistance pts =
+      sortBy (comparing snd) (allPairs pts)
+
+    allPairs pts =
+      [ ((p, q), dist p q)
+      | (p:rest) <- tails pts
+      , q        <- rest
+      ]
+
+    -- Euclidean distance between two 3D points
+    dist :: JunctionBox08 -> JunctionBox08 -> Double
+    dist (x1, y1, z1) (x2, y2, z2) =
+      sqrt $ (fromIntegral(x1-x2))**2 + (fromIntegral(y1 - y2))**2 + (fromIntegral(z1 - z2))**2
+
+    createSet :: [String] -> S.Set (S.Set JunctionBox08)
+    createSet [] = S.empty
+    createSet (s:ss) = S.insert (S.singleton $ createJunctionBox $ splitOnChar ',' s) $ createSet ss
+
+    splitOnChar :: Char -> String -> [String]
+    splitOnChar c s =
+      case break (== c) s of
+        (chunk, [])     -> [chunk]
+        (chunk, _:rest) -> chunk : splitOnChar c rest
+
+    createJunctionBox :: [String] -> JunctionBox08
+    createJunctionBox (x:y:z:[]) = ((read x), (read y), (read z))
+    createJunctionBox _ = error "Not possible to create JunctionBox"
+
+    doNShortConnection
+      :: [((JunctionBox08, JunctionBox08), Double)]
+      -> S.Set (S.Set JunctionBox08)
+      -> Maybe ((JunctionBox08, JunctionBox08), Double)
+    doNShortConnection [] _  = Nothing
+    doNShortConnection (psd:psds) ssj =
+      let updateSsj = doShortConnection psd ssj
+      in if S.size updateSsj == 1
+         then Just psd
+         else doNShortConnection psds updateSsj
+
+    doShortConnection
+      :: ((JunctionBox08, JunctionBox08), Double)
+      -> S.Set (S.Set JunctionBox08)
+      -> S.Set (S.Set JunctionBox08)
+    doShortConnection ((p1,p2),_) s = fromMaybe s $ do
+      s1 <- find (S.member p1) s
+      s2 <- find (S.member p2) s
+      pure $ S.insert (S.union s1 s2) $ S.delete s1 $ S.delete s2 s
+

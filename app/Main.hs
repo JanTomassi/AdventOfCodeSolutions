@@ -1,22 +1,34 @@
 module Main where
 
 import System.Environment (getArgs)
-import AdventOfCode.Days2025 as D2025
+import qualified AdventOfCode.Days2017 as D2017
+import qualified AdventOfCode.Days2025 as D2025
 
 main :: IO ()
 main = do
   args <- getArgs
   case args of
     (year:day:rest) ->
-      case (year, day) of
-        ("2025", "1") -> run01 rest
-        ("2025", "2") -> run02 rest
-        ("2025", "3") -> run03 rest
-        ("2025", "4") -> run04 rest
-        ("2025", "5") -> run05 rest
-        ("2025", "6") -> run06 rest
-        ("2025", "7") -> run07 rest
-        _   -> putStrLn ("Unknown day: " ++ day)
+      case year of
+        -- 2017
+        "2017" ->
+          case day of
+            "2" -> D2017.run02 rest
+            "4" -> D2017.run04 rest
+            "5" -> D2017.run05 rest
+            _   -> putStrLn ("Unknown day for 2025: " ++ day)
+        -- 2025
+        "2025" ->
+          case day of
+            "1" -> D2025.run01 rest
+            "2" -> D2025.run02 rest
+            "3" -> D2025.run03 rest
+            "4" -> D2025.run04 rest
+            "5" -> D2025.run05 rest
+            "6" -> D2025.run06 rest
+            "7" -> D2025.run07 rest
+            "8" -> D2025.run08 rest
+            _   -> putStrLn ("Unknown day for 2025: " ++ day)
     _ ->
       usage
 
