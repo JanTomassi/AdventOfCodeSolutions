@@ -618,23 +618,23 @@ run08 args = do
   input1 <- readFile "inputs/day08_1.txt"
   case (args) of
     [] -> do
-      putStrLn $ "test: Day 08, part 1: " ++ (show $ part08_1 input0)
+      putStrLn $ "test: Day 08, part 1: " ++ (show $ part08_1 10 input0)
       putStrLn $ "test: Day 08, part 2: " ++ (show $ part08_2 input0)
-      putStrLn $ "Day 08, part 1: " ++ (show $ part08_1 input1)
+      putStrLn $ "Day 08, part 1: " ++ (show $ part08_1 1000 input1)
       putStrLn $ "Day 08, part 2: " ++ (show $ part08_2 input1)
     ["t"] -> do
-      putStrLn $ "test: Day 08, part 1: " ++ (show $ part08_1 input0)
+      putStrLn $ "test: Day 08, part 1: " ++ (show $ part08_1 10 input0)
       putStrLn $ "test: Day 08, part 2: " ++ (show $ part08_2 input0)
     ["1"] -> do
-      putStrLn $ "Day 08, part 1: " ++ (show $ part08_1 input1)
+      putStrLn $ "Day 08, part 1: " ++ (show $ part08_1 1000 input1)
     ["2"] -> do
       putStrLn $ "Day 08, part 2: " ++ (show $ part08_2 input1)
     _ ->
       putStrLn "Usage: aoc2025 1 [t|1|2]"
 
 
-part08_1 :: String -> Int
-part08_1 strs = let
+part08_1 :: Int -> String -> Int
+part08_1 nCable strs = let
   ls  = lines strs
   psd = pairsByDistance $ map (createJunctionBox . splitOnChar ',') $ ls
   ssj = createSet $ ls
@@ -643,7 +643,7 @@ part08_1 strs = let
      $ sortBy (flip $ comparing fst)
      $ S.toList
      $ S.map (\it -> (S.size it, it))
-     $ doNShortConnection (take 1000 psd) ssj
+     $ doNShortConnection (take nCable psd) ssj
   where
     pairsByDistance :: [JunctionBox08] -> [((JunctionBox08, JunctionBox08), Double)]
     pairsByDistance pts =
