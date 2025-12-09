@@ -1,6 +1,6 @@
 module AdventOfCode.Days2025 where
 
-import Debug.Trace (trace, traceId, traceShow, traceShowId)
+-- import Debug.Trace (trace, traceId, traceShow, traceShowId)
 import Data.Char   (digitToInt)
 import Data.Array
 import Data.List   (sortOn, transpose, foldl', foldl1', sortBy, tails, elemIndex, find)
@@ -241,7 +241,7 @@ part03_2 =
         step k best d =
             let shifted = 0 : map mk (take k best)
                 mk prev = if prev < 0 then -1 else prev * 10 + d
-            in traceShow shifted $ zipWith max best shifted
+            in zipWith max best shifted
 
 
 ---------------
@@ -564,10 +564,13 @@ part07_1 str = let
       in (Beam : rest, acc')
 
     updateRow acc ps cs =
-      trace ("Unmatched pattern acc: " ++ show acc)
-      $ trace ("Unmatched pattern ps: " ++ show ps)
-      $ trace ("Unmatched pattern cs: " ++ show cs)
-      $ error "Missing pattern"
+      error ("Unmatched pattern acc: "
+      ++ show acc
+      ++ "\nUnmatched pattern ps: "
+      ++ show ps
+      ++ "\nUnmatched pattern cs: "
+      ++ show cs
+      ++ "\nMissing pattern")
 
 
 part07_2 :: String -> Int
@@ -820,6 +823,7 @@ part09_2 strs = let points = map createPoint $ map (splitOnChar ',') $ lines str
     createSegments [] [] = []
     createSegments ((p1x,p1y):ps) ((p2x,p2y):ns) =
       ((min p1x p2x, min p1y p2y),(max p1x p2x, max p1y p2y)) : createSegments ps ns
+    createSegments _ _ = error "List size are not equal"
 
     go :: [(Point, Point)] -> Int -> (Point, Point, Int) -> Int
     go segments res ((b1x,b1y),(b2x,b2y),a) =
