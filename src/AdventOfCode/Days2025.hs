@@ -1,13 +1,4 @@
-module AdventOfCode.Days2025
-       ( run01
-       , run02
-       , run03
-       , run04
-       , run05
-       , run06
-       , run07
-       , run08
-       ) where
+module AdventOfCode.Days2025 where
 
 import Debug.Trace (trace, traceId, traceShow, traceShowId)
 import Data.Char   (digitToInt)
@@ -749,3 +740,98 @@ part08_2 strs = let
       s2 <- find (S.member p2) s
       pure $ S.insert (S.union s1 s2) $ S.delete s1 $ S.delete s2 s
 
+
+type Point = (Int, Int)
+type BoundingBox09 = (Point, Point, Int)
+type Segment09 = (Point, Point)
+run09 :: [String] -> IO ()
+run09 args = do
+  input0 <- readFile "inputs/day09_t.txt"
+  input1 <- readFile "inputs/day09_1.txt"
+  case (args) of
+    [] -> do
+      putStrLn $ "test: Day 09, part 1: " ++ (show $ part09_1 input0)
+      putStrLn $ "test: Day 09, part 2: " ++ (show $ part09_2 input0)
+      putStrLn $ "Day 09, part 1: " ++ (show $ part09_1 input1)
+      putStrLn $ "Day 09, part 2: " ++ (show $ part09_2 input1)
+    ["t"] -> do
+      putStrLn $ "test: Day 09, part 1: " ++ (show $ part09_1 input0)
+      putStrLn $ "test: Day 09, part 2: " ++ (show $ part09_2 input0)
+    ["1"] -> do
+      putStrLn $ "Day 09, part 1: " ++ (show $ part09_1 input1)
+    ["2"] -> do
+      putStrLn $ "Day 09, part 2: " ++ (show $ part09_2 input1)
+    _ ->
+      putStrLn "Usage: aoc2025 1 [t|1|2]"
+
+
+part09_1 :: String -> Int
+part09_1 = third3
+  . head
+  . reverse
+  . sortBy (comparing third3)
+  . allPairs
+  . map createPoint
+  . map (splitOnChar ',')
+  . lines
+  where
+    splitOnChar :: Char -> String -> [String]
+    splitOnChar c s =
+      case break (== c) s of
+        (chunk, [])     -> [chunk]
+        (chunk, _:rest) -> chunk : splitOnChar c rest
+
+    createPoint :: [String] -> Point
+    createPoint (x:y:[]) = (read x, read y)
+    createPoint e = error $ "Not possible to create Point from " ++ (show e)
+
+    allPairs :: [Point] -> [(Point, Point, Int)]
+    allPairs pts = [(p, q, area p q) | (p:rest) <- tails pts, q <- rest]
+
+    area :: Point -> Point -> Int
+    area (x1,y1) (x2,y2) = ((abs $ x1-x2)+1)*((abs $ y1-y2)+1)
+
+    third3 :: (Point,Point,Int) -> Int
+    third3 (_,_,d) = d
+
+part09_2 :: String -> Int
+part09_2 strs = let points = map createPoint $ map (splitOnChar ',') $ lines strs
+                    segments = createSegments points $ (tail points)++[head points]
+                    allPointCombinations = allPairs points
+                  in foldl (go segments) 0 allPointCombinations
+  where
+    splitOnChar :: Char -> String -> [String]
+    splitOnChar c s =
+      case break (== c) s of
+        (chunk, [])     -> [chunk]
+        (chunk, _:rest) -> chunk : splitOnChar c rest
+
+    createPoint :: [String] -> Point
+    createPoint (x:y:[]) = (read x, read y)
+    createPoint e = error $ "Not possible to create Point from " ++ (show e)
+
+    allPairs :: [Point] -> [(Point, Point, Int)]
+    allPairs pts = [(p, q, area p q) | (p:rest) <- tails pts, q <- rest]
+
+    area :: Point -> Point -> Int
+    area (x1,y1) (x2,y2) = ((abs $ x1-x2)+1)*((abs $ y1-y2)+1)
+
+    createSegments :: [Point] -> [Point] -> [(Point, Point)]
+    createSegments [] [] = []
+    createSegments ((p1x,p1y):ps) ((p2x,p2y):ns) =
+      ((min p1x p2x, min p1y p2y),(max p1x p2x, max p1y p2y)) : createSegments ps ns
+
+    go :: [(Point, Point)] -> Int -> (Point, Point, Int) -> Int
+    go segments res ((b1x,b1y),(b2x,b2y),a) =
+      if res >= a
+      then res
+      else let (min_x, max_x) = if b1x < b2x then (b1x, b2x) else (b2x, b1x)
+               (min_y, max_y) = if b1y < b2y then (b1y, b2y) else (b2y, b1y)
+           in if isFullyContained segments min_x min_y max_x max_y then a else res
+
+    isFullyContained :: [(Point, Point)] -> Int -> Int -> Int -> Int -> Bool
+    isFullyContained     []     _     _     _     _ = True
+    isFullyContained (((s1x,s1y),(s2x,s2y)):ss) min_x min_y max_x max_y =
+      if min_x < s2x && max_x > s1x && min_y < s2y && max_y > s1y
+      then False
+      else isFullyContained ss min_x min_y max_x max_y
