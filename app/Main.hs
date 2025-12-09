@@ -30,6 +30,7 @@ main = do
             "8" -> D2025.run08 rest
             "9" -> D2025.run09 rest
             _   -> putStrLn ("Unknown day for 2025: " ++ day)
+        _ -> usage
     _ ->
       usage
 
