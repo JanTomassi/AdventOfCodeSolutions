@@ -1,14 +1,20 @@
 module AdventOfCode.Days2025 where
 
--- import Debug.Trace (trace, traceId, traceShow, traceShowId)
-import Data.Char   (digitToInt)
+import Debug.Trace (trace, traceId, traceShow, traceShowId)
+import Data.Char   (digitToInt, isDigit)
 import Data.Array
 import Data.List   (sortOn, transpose, foldl', foldl1', sortBy, tails, elemIndex, find)
 import Data.Ord    (comparing)
 import Data.Maybe  (fromMaybe)
+import Control.Monad.State.Strict
 
+import qualified Data.List       as L
 import qualified Data.Set        as S
+-- import qualified Data.Vector     as V
 import qualified Data.Map.Strict as M
+import qualified Data.Sequence   as Seq
+import qualified Data.Text       as T
+import Data.Sequence (Seq(..), (|>))
 
 
 ---------------
@@ -839,3 +845,291 @@ part09_2 strs = let points = map createPoint $ map (splitOnChar ',') $ lines str
       if min_x < s2x && max_x > s1x && min_y < s2y && max_y > s1y
       then False
       else isFullyContained ss min_x min_y max_x max_y
+
+
+run10 :: [String] -> IO ()
+run10 args = do
+  input0 <- readFile "inputs/day10_t.txt"
+  input1 <- readFile "inputs/day10_1.txt"
+  case (args) of
+    [] -> do
+      putStrLn $ "test: Day 10, part 1: " ++ (show $ part10_1 input0)
+      putStrLn $ "test: Day 10, part 2: " ++ (show $ part10_2 input0)
+      putStrLn $ "Day 10, part 1: " ++ (show $ part10_1 input1)
+      putStrLn $ "Day 10, part 2: " ++ (show $ part10_2 input1)
+    ["t"] -> do
+      putStrLn $ "test: Day 10, part 1: " ++ (show $ part10_1 input0)
+      putStrLn $ "test: Day 10, part 2: " ++ (show $ part10_2 input0)
+    ["1"] -> do
+      putStrLn $ "Day 10, part 1: " ++ (show $ part10_1 input1)
+    ["2"] -> do
+      putStrLn $ "Day 10, part 2: " ++ (show $ part10_2 input1)
+    _ ->
+      putStrLn "Usage: aoc2025 1 [t|1|2]"
+
+type Joltage = Int
+data Button = On | Off
+  deriving (Show, Eq, Ord)
+data ButtonBoard = State [Button] [[Int]] [Joltage]
+  deriving (Show, Eq)
+
+-- createbuttonBoard :: String -> ButtonBoard
+createbuttonBoard str = let (buttons,rest)   = createFinalButtonState str []
+                            (wiring,rest')   = createButtonWiring rest []
+                            (joltage,rest'') = createJoltageList rest' []
+  in State buttons wiring joltage
+  where
+    createFinalButtonState :: String -> [Button] -> ([Button], String)
+    createFinalButtonState (s:ss) buttons = case s of
+      '[' -> createFinalButtonState ss buttons
+      '.' -> createFinalButtonState ss (Off:buttons)
+      '#' -> createFinalButtonState ss (On:buttons)
+      ']' -> (reverse buttons, ss)
+      ' ' -> createFinalButtonState ss buttons
+
+    createButtonWiring :: String -> [[Int]] -> ([[Int]], String)
+    createButtonWiring str@(s:ss) acc = case s of
+      ' ' -> createButtonWiring ss acc
+      '{' -> (reverse acc, str)
+      '(' -> let (wiring,rest) = parseWiring str [] []
+             in createButtonWiring rest (wiring:acc)
+
+    parseWiring :: String -> [Int] -> [Int] -> ([Int], String)
+    parseWiring (s:ss) number wiring = case s of
+      ' ' -> parseWiring ss number wiring
+      '(' -> parseWiring ss [] wiring
+      n | isDigit n -> parseWiring ss ((digitToInt n):number) wiring
+      ',' -> parseWiring ss [] ((foldl ((+).(*10)) 0 $ reverse number):wiring)
+      ')' -> (reverse ((foldl ((+).(*10)) 0 $ reverse number):wiring), ss)
+      e -> error ("parseWiring: Missing match for " ++ e : " the rest is " ++ ss)
+
+    createJoltageList :: String -> [Int] -> ([Int], String)
+    createJoltageList str@(s:ss) acc = case s of
+      ' ' -> createJoltageList ss acc
+      '{' -> parseJoltage str [] []
+      e -> error ("createJoltageList: Missing match for " ++ e : " the rest is " ++ ss)
+
+    parseJoltage :: String -> [Int] -> [Int] -> ([Int], String)
+    parseJoltage str@(s:ss) number wiring = case s of
+      '{' -> parseJoltage ss [] wiring
+      n | isDigit n -> parseJoltage ss ((digitToInt n):number) wiring
+      ',' -> parseJoltage ss [] ((foldl ((+).(*10)) 0 $ reverse number):wiring)
+      '}' -> (reverse ((foldl ((+).(*10)) 0 $ reverse number):wiring), str)
+      ' ' -> parseJoltage ss number wiring
+      e -> error ("parseJoltage: Missing match for " ++ e : " the rest is " ++ ss)
+
+
+part10_1 = sum
+  . fmap initCall
+  . fmap createbuttonBoard
+  . lines
+  where
+    initCall it@(State buttons _ _) =
+      findMinimumNumOfPress (replicate (length buttons) Off) it
+
+    findMinimumNumOfPress :: [Button] -> ButtonBoard -> Int
+    findMinimumNumOfPress start buttonBoard@(State target wirings joltages) =
+      go (Seq.singleton (start, 0)) (S.singleton start)
+      where
+        go :: Seq ([Button], Int) -> S.Set [Button] -> Int
+        go Seq.Empty _ = error "No solution reachable"
+        go ((cur,p) :<| q) visited
+          | cur == target = p
+          | otherwise =
+              let nextStates = filter (`S.notMember` visited) $ [ updateButtons cur w | w <- wirings ]
+                  visited'   = foldl' (flip S.insert) visited nextStates
+                  q'         = foldl' (\qq b' -> qq |> (b', p+1)) q nextStates
+              in go q' visited'
+
+
+    toggle :: Button -> Button
+    toggle On  = Off
+    toggle Off = On
+
+    -- toggle the button at position i
+    toggleAt :: Int -> [Button] -> [Button]
+    toggleAt i bs =
+      case splitAt i bs of
+        (before, b:after) -> before ++ (toggle b : after)
+        _                 -> bs
+
+    -- apply all toggles in order
+    updateButtons :: [Button] -> [Int] -> [Button]
+    updateButtons = foldl' (\buttons i -> toggleAt i buttons)
+
+part10_2 :: String -> Int
+part10_2 = error "Solved using Z3 a hopefully an Haskell implementation will arrive soon"
+  -- sum
+  -- . fmap (traceShowId . initCall)
+  -- . fmap createbuttonBoard
+  -- . lines
+  -- where
+  --   initCall it@(State _ _ joltage) =
+  --     findMinimumNumOfPress (replicate (length joltage) 0) it
+
+  --   findMinimumNumOfPress :: [Joltage] -> ButtonBoard -> Int
+  --   findMinimumNumOfPress start buttonBoard@(State _ wirings target) =
+  --     go (Seq.singleton (start, 0)) (S.singleton start)
+  --     where
+  --       go :: Seq ([Int], Int) -> S.Set [Int] -> Int
+  --       go Seq.Empty _ = error "No solution reachable"
+  --       go ((cur,p) :<| q) visited
+  --         | cur == target = p
+  --         | otherwise =
+  --             let nextStates = filter (\it -> (it <= target && it `S.notMember` visited)) [ updateJoltage cur w | w <- wirings ]
+  --                 visited'   = foldl' (flip S.insert) visited nextStates
+  --                 q'         = foldl' (\qq b' -> qq |> (b', p+1)) q nextStates
+  --             in go q' visited'
+
+  --   -- toggle the button at position i
+  --   incrementAt :: Int -> [Joltage] -> [Joltage]
+  --   incrementAt i bs =
+  --     case splitAt i bs of
+  --       (before, b:after) -> before ++ ((b+1) : after)
+  --       _                 -> bs
+
+  --   -- apply all toggles in order
+  --   updateJoltage :: [Joltage] -> [Int] -> [Joltage]
+  --   updateJoltage = foldl' (flip incrementAt)
+
+type ServerId = String
+type ServerConnection = M.Map ServerId [ServerId]
+type ServerCache = M.Map (ServerId, S.Set ServerId) Int
+run11 :: [String] -> IO ()
+run11 args = do
+  input1t <- readFile "inputs/day11_t1.txt"
+  input2t <- readFile "inputs/day11_t2.txt"
+  input <- readFile "inputs/day11.txt"
+  case (args) of
+    [] -> do
+      putStrLn $ "test: Day 11, part 1: " ++ (show $ part11_1 input1t)
+      putStrLn $ "test: Day 11, part 2: " ++ (show $ part11_2 input2t)
+      putStrLn $ "Day 11, part 1: " ++ (show $ part11_1 input)
+      putStrLn $ "Day 11, part 2: " ++ (show $ part11_2 input)
+    ["t"] -> do
+      putStrLn $ "test: Day 11, part 1: " ++ (show $ part11_1 input1t)
+      putStrLn $ "test: Day 11, part 2: " ++ (show $ part11_2 input2t)
+    ["1"] -> do
+      putStrLn $ "Day 11, part 1: " ++ (show $ part11_1 input)
+    ["2"] -> do
+      putStrLn $ "Day 11, part 2: " ++ (show $ part11_2 input)
+    _ ->
+      putStrLn "Usage: aoc2025 1 [t|1|2]"
+
+-- Do a DFS search for the number of path leading to out
+part11_1 :: String -> Int
+part11_1 strs = let ls = lines strs
+                    nodeConnectionMap = map createServerElement ls
+                    graph = foldr (uncurry M.insert) M.empty nodeConnectionMap
+                in dfs "out" S.empty graph "you"
+  where
+    createServerElement :: String -> (ServerId, [ServerId])
+    createServerElement strs = let (node:connections) = words strs
+                                   node' = reverse $ tail $ reverse node
+                               in (node', connections)
+
+    dfs :: ServerId -> S.Set ServerId -> ServerConnection -> ServerId -> Int
+    dfs stop visited graph cur = let visited' = S.insert cur visited
+                                     subRes = map (\it ->
+                                                     if S.member cur visited
+                                                     then 0
+                                                     else
+                                                       if it == stop
+                                                       then 1
+                                                       else dfs stop visited' graph it
+                                                  )
+                                              $ graph M.! cur
+                                 in if S.member cur visited
+                                    then 0
+                                    else sum subRes
+
+part11_2 :: String -> Int
+part11_2 strs = let ls = lines strs
+                    nodeConnectionMap = map createServerElement ls
+                    graph = foldr (uncurry M.insert) M.empty nodeConnectionMap
+                in dfsCached "out" graph "svr"
+  where
+    createServerElement :: String -> (ServerId, [ServerId])
+    createServerElement strs = let (node:connections) = words strs
+                                   node' = reverse $ tail $ reverse node
+                               in (node', connections)
+
+    dfsCached :: ServerId -- ^ stop
+      -> ServerConnection -- ^ graph
+      -> ServerId         -- ^ start
+      -> Int
+    dfsCached stop graph start =
+      evalState (dfs (S.fromList ["dac","fft"]) S.empty start) M.empty
+      where
+        dfs :: S.Set ServerId -> S.Set ServerId -> ServerId -> State ServerCache Int
+        dfs constraints visited cur = do
+          cache <- get
+          let key = (cur, S.delete cur constraints)
+            in case M.lookup key cache of
+                 Just v -> pure v
+                 Nothing -> do
+                   res <- compute (snd key) visited cur
+                   modify' (M.insert key res)
+                   pure res
+
+        compute :: S.Set ServerId -> S.Set ServerId -> ServerId -> State ServerCache Int
+        compute constraints visited cur
+          | S.member cur visited = pure 0
+          | otherwise = do
+              let visited' = S.insert cur visited
+                  neighbours =
+                    case M.lookup cur graph of
+                      Nothing -> error $ "Missing element " ++ cur ++ " from graph"
+                      Just x -> x
+              subRes <- mapM (recursiveStep constraints visited') neighbours
+              pure $ sum subRes
+
+        recursiveStep :: S.Set ServerId -> S.Set ServerId -> ServerId -> State ServerCache Int
+        recursiveStep constraints visited it
+          | it == stop =
+            if S.member "fft" visited && S.member "dac" visited
+            then pure 1
+            else pure 0
+          | otherwise = dfs constraints visited it
+
+
+run12 :: [String] -> IO ()
+run12 args = do
+  inputt <- readFile "inputs/day12_t.txt"
+  input <- readFile "inputs/day12.txt"
+  case (args) of
+    [] -> do
+      putStrLn $ "test: Day 12, part 1: " ++ (show $ part12_1 inputt)
+      putStrLn $ "Day 12, part 1: " ++ (show $ part12_1 input)
+      putStrLn $ "Day 12, part 2: " ++ (show $ part12_2 input)
+    ["t"] -> do
+      putStrLn $ "test: Day 12, part 1: " ++ (show $ part12_1 inputt)
+    ["1"] -> do
+      putStrLn $ "Day 12, part 1: " ++ (show $ part12_1 input)
+    _ ->
+      putStrLn "Usage: aoc2025 1 [t|1|2]"
+
+data Presents = Present | Empty
+
+-- part12_1 :: String -> Int
+part12_1 = sum
+  . map (\((a,b),xs)->if ((a`div`3)*(b`div`3))>=(sum xs) then 1 else 0)
+  . map makeTuple
+  . filter (not.match)
+  . map T.stripEnd
+  . map T.pack
+  . lines
+  where
+    makeTuple :: T.Text -> ((Int, Int), [Int])
+    makeTuple t = let (w:rest) = T.splitOn (T.pack "x") t
+                      (h:rest') = T.splitOn (T.pack ":") (T.concat rest)
+                      blocks = T.splitOn (T.pack " ") (T.tail $ head $ rest')
+                  in (((read.T.unpack) w, (read.T.unpack) h), map (read.T.unpack) blocks)
+
+    match :: T.Text -> Bool
+    match t = t == T.empty
+      || T.last t == ':'
+      || T.foldl containShape False t
+      where
+        containShape :: Bool -> Char -> Bool
+        containShape acc c = acc || c=='#' || c=='.'

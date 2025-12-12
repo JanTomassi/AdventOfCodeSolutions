@@ -1,33 +1,8 @@
-module AdventOfCode.Days2017
-       ( -- run01
-       run02
-       , run03
-       , run04
-       , run05
-       -- , run06
-       -- , run07
-       -- , run08
-       -- , run09
-       -- , run10
-       -- , run11
-       -- , run12
-       -- , run13
-       -- , run14
-       -- , run15
-       -- , run16
-       -- , run17
-       -- , run18
-       -- , run19
-       -- , run20
-       -- , run21
-       -- , run22
-       -- , run23
-       -- , run24
-       -- , run25
-       ) where
+module AdventOfCode.Days2017 where
 
 import qualified Data.List as L
 import qualified Data.Map as M
+import qualified Data.Set as S
 import qualified Data.Array as A
 import Debug.Trace
 
@@ -178,3 +153,87 @@ part05_2 str = go 0 0 (A.array (0, (length $ lines str) - 1) [(i, read j) | (i, 
   where
     go :: Int -> Int -> A.Array Int Int -> Int
     go acc i arr = if A.inRange (A.bounds arr) i then go (acc+1) (i + (arr A.! i)) (arr A.// [(i, ((arr A.! i) + if (arr A.! i) < 3 then 1 else (-1)))]) else acc
+
+
+run06 :: [String] -> IO ()
+run06 args = do
+  input0 <- readFile "inputs/2017/day06_t.txt"
+  input1 <- readFile "inputs/2017/day06.txt"
+  case (args) of
+    [] -> do
+      putStrLn $ "test: Day 06, part 1: " ++ (show $ part06_1 input0)
+      putStrLn $ "test: Day 06, part 2: " ++ (show $ part06_2 input0)
+      putStrLn $ "Day 06, part 1: " ++ (show $ part06_1 input1)
+      putStrLn $ "Day 06, part 2: " ++ (show $ part06_2 input1)
+    ["t"] -> do
+      putStrLn $ "test: Day 06, part 1: " ++ (show $ part06_1 input0)
+      putStrLn $ "test: Day 06, part 2: " ++ (show $ part06_2 input0)
+    ["1"] -> do
+      putStrLn $ "Day 06, part 1: " ++ (show $ part06_1 input1)
+    ["2"] -> do
+      putStrLn $ "Day 06, part 2: " ++ (show $ part06_2 input1)
+    _ ->
+      putStrLn "Usage: aoc2025 1 [t|1|2]"
+
+part06_1 :: String -> Int
+part06_1 = go S.empty . map read . words
+  where
+    go :: S.Set [Int] -> [Int] -> Int
+    go visited cur = if S.member cur visited
+                     then S.size visited
+                     else go (S.insert cur visited) $ step cur
+
+    step :: [Int] -> [Int]
+    step v = let curMax = (maximum v)
+                 (left,_:right) = break (==curMax) v
+                 (r,right') = advance curMax right
+             in recAdvance r $ left ++ (0:right')
+      where
+        recAdvance :: Int -> [Int] -> [Int]
+        recAdvance n [] = []
+        recAdvance n ls =
+          let len     = length ls
+              (q, r)  = n `divMod` len
+              inc i l = l + q + (if i < r then 1 else 0)
+          in zipWith inc [0..] ls
+
+
+        advance :: Int -> [Int] -> (Int, [Int])
+        advance 0 ls = (0, ls)
+        advance a [] = (a, [])
+        advance a (l:ls) = let (a', ls') = advance (a-1) ls
+                           in (a', (l+1:ls'))
+
+part06_2 :: String -> Int
+part06_2 = loopSize S.empty . findLoopInit S.empty . map read . words
+  where
+    loopSize :: S.Set [Int] -> [Int] -> Int
+    loopSize visited cur = if S.member cur visited
+                     then S.size visited
+                     else loopSize (S.insert cur visited) $ step cur
+
+    findLoopInit :: S.Set [Int] -> [Int] -> [Int]
+    findLoopInit visited cur = if S.member cur visited
+                     then cur
+                     else findLoopInit (S.insert cur visited) $ step cur
+
+    step :: [Int] -> [Int]
+    step v = let curMax = (maximum v)
+                 (left,_:right) = break (==curMax) v
+                 (r,right') = advance curMax right
+             in recAdvance r $ left ++ (0:right')
+      where
+        recAdvance :: Int -> [Int] -> [Int]
+        recAdvance n [] = []
+        recAdvance n ls =
+          let len     = length ls
+              (q, r)  = n `divMod` len
+              inc i l = l + q + (if i < r then 1 else 0)
+          in zipWith inc [0..] ls
+
+
+        advance :: Int -> [Int] -> (Int, [Int])
+        advance 0 ls = (0, ls)
+        advance a [] = (a, [])
+        advance a (l:ls) = let (a', ls') = advance (a-1) ls
+                           in (a', (l+1:ls'))
